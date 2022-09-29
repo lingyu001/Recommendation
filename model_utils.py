@@ -3,6 +3,7 @@ from tensorflow.python.ops.init_ops_v2 import glorot_normal
 from tensorflow.python.keras.initializers import RandomNormal, Zeros
 from tensorflow.python.keras.regularizers import l2
 from tensorflow.keras.layers import BatchNormalization
+from tensorflow.python.keras import backend as K
 import tensorflow as tf
 class DNN(Layer):
     """The Multi Layer Percetron
@@ -226,3 +227,146 @@ def reduce_max(input_tensor,
                              axis=axis,
                              keepdims=keep_dims,
                              name=name)
+
+# class SampledSoftmaxLayer(Layer):
+#     def __init__(self, sampler_config, temperature=1.0, **kwargs):
+#         self.sampler_config = sampler_config
+#         self.temperature = temperature
+#         self.sampler = self.sampler_config['sampler']
+#         self.item_count = self.sampler_config['item_count']
+
+#         super(SampledSoftmaxLayer, self).__init__(**kwargs)
+
+#     def build(self, input_shape):
+#         self.vocabulary_size = input_shape[0][0]
+#         self.zero_bias = self.add_weight(shape=[self.vocabulary_size],
+#                                          initializer=Zeros,
+#                                          dtype=tf.float32,
+#                                          trainable=False,
+#                                          name="bias")
+#         super(SampledSoftmaxLayer, self).build(input_shape)
+
+#     def call(self, inputs_with_item_idx, training=None, **kwargs):
+#         item_embeddings, user_vec, item_idx = inputs_with_item_idx
+#         if item_idx.dtype != tf.int64:
+#             item_idx = tf.cast(item_idx, tf.int64)
+#         user_vec /= self.temperature
+#         if self.sampler == "inbatch":
+#             item_vec = tf.gather(item_embeddings, tf.squeeze(item_idx, axis=1))
+#             logits = tf.matmul(user_vec, item_vec, transpose_b=True)
+#             loss = inbatch_softmax_cross_entropy_with_logits(logits, self.item_count, item_idx)
+
+#         else:
+#             num_sampled = self.sampler_config['num_sampled']
+#             if self.sampler == "frequency":
+#                 sampled_values = tf.nn.fixed_unigram_candidate_sampler(item_idx, 1, num_sampled, True,
+#                                                                        self.vocabulary_size,
+#                                                                        distortion=self.sampler_config['distortion'],
+#                                                                        unigrams=np.maximum(self.item_count, 1).tolist(),
+#                                                                        seed=None,
+#                                                                        name=None)
+#             elif self.sampler == "adaptive":
+#                 sampled_values = tf.nn.learned_unigram_candidate_sampler(item_idx, 1, num_sampled, True,
+#                                                                          self.vocabulary_size, seed=None, name=None)
+#             elif self.sampler == "uniform":
+#                 try:
+#                     sampled_values = tf.nn.uniform_candidate_sampler(item_idx, 1, num_sampled, True,
+#                                                                      self.vocabulary_size, seed=None, name=None)
+#                 except AttributeError:
+#                     sampled_values = tf.random.uniform_candidate_sampler(item_idx, 1, num_sampled, True,
+#                                                                          self.vocabulary_size, seed=None, name=None)
+#             else:
+#                 raise ValueError(' `%s` sampler is not supported ' % self.sampler)
+
+#             loss = tf.nn.sampled_softmax_loss(weights=item_embeddings,
+#                                               biases=self.zero_bias,
+#                                               labels=item_idx,
+#                                               inputs=user_vec,
+#                                               num_sampled=num_sampled,
+#                                               num_classes=self.vocabulary_size,
+#                                               sampled_values=sampled_values
+#                                               )
+#         return tf.expand_dims(loss, axis=1)
+
+#     def compute_output_shape(self, input_shape):
+#         return (None, 1)
+
+#     def get_config(self, ):
+#         config = {'sampler_config': self.sampler_config, 'temperature': self.temperature}
+#         base_config = super(SampledSoftmaxLayer, self).get_config()
+#         return dict(list(base_config.items()) + list(config.items()))
+
+class SampledSoftmaxLayer(Layer):
+    def __init__(self, temperature=1.0, **kwargs):
+        # self.sampler_config = sampler_config
+        self.temperature = temperature # temperature = 1.0 so no impact
+        # self.sampler = self.sampler_config['sampler']
+        # self.item_count = self.sampler_config['item_count']
+
+        super(SampledSoftmaxLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.vocabulary_size = input_shape[0][0]
+        self.zero_bias = self.add_weight(shape=[self.vocabulary_size],
+                                         initializer=Zeros,
+                                         dtype=tf.float32,
+                                         trainable=False,
+                                         name="bias")
+        super(SampledSoftmaxLayer, self).build(input_shape)
+
+    def call(self, inputs_with_item_idx, training=None, **kwargs):
+        item_embeddings, user_vec, item_idx = inputs_with_item_idx
+        if item_idx.dtype != tf.int64:
+            item_idx = tf.cast(item_idx, tf.int64)
+        user_vec /= self.temperature
+        # if self.sampler == "inbatch":
+        #     item_vec = tf.gather(item_embeddings, tf.squeeze(item_idx, axis=1))
+        #     logits = tf.matmul(user_vec, item_vec, transpose_b=True)
+        #     loss = inbatch_softmax_cross_entropy_with_logits(logits, self.item_count, item_idx)
+
+        # else:
+        #     num_sampled = self.sampler_config['num_sampled']
+        #     if self.sampler == "frequency":
+        #         sampled_values = tf.nn.fixed_unigram_candidate_sampler(item_idx, 1, num_sampled, True,
+        #                                                                self.vocabulary_size,
+        #                                                                distortion=self.sampler_config['distortion'],
+        #                                                                unigrams=np.maximum(self.item_count, 1).tolist(),
+        #                                                                seed=None,
+        #                                                                name=None)
+        #     elif self.sampler == "adaptive":
+        #         sampled_values = tf.nn.learned_unigram_candidate_sampler(item_idx, 1, num_sampled, True,
+        #                                                                  self.vocabulary_size, seed=None, name=None)
+        #     elif self.sampler == "uniform":
+        #         try:
+        #             sampled_values = tf.nn.uniform_candidate_sampler(item_idx, 1, num_sampled, True,
+        #                                                              self.vocabulary_size, seed=None, name=None)
+        #         except AttributeError:
+        #             sampled_values = tf.random.uniform_candidate_sampler(item_idx, 1, num_sampled, True,
+        #                                                                  self.vocabulary_size, seed=None, name=None)
+        #     else:
+        #         raise ValueError(' `%s` sampler is not supported ' % self.sampler)
+
+        loss = tf.nn.sampled_softmax_loss(weights=item_embeddings,
+                                              biases=self.zero_bias,
+                                              labels=item_idx,
+                                              inputs=user_vec,
+                                              num_sampled=255,
+                                              num_classes=self.vocabulary_size,
+                                              sampled_values=None
+                                              )
+        return tf.expand_dims(loss, axis=1)
+
+    def compute_output_shape(self, input_shape):
+        return (None, 1)
+
+    def get_config(self, ):
+        config = {'sampler_config': self.sampler_config, 'temperature': self.temperature} 
+        base_config = super(SampledSoftmaxLayer, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+def get_item_embedding(item_embedding, item_input_layer):
+    return Lambda(lambda x: tf.squeeze(tf.gather(item_embedding, x), axis=1))(
+        item_input_layer)
+
+def sampledsoftmaxloss(y_true, y_pred):
+    return K.mean(y_pred)
