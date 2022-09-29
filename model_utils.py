@@ -1,6 +1,7 @@
 from tensorflow.python.keras.layers import Layer, Dropout, Activation, Lambda
 from tensorflow.python.ops.init_ops_v2 import glorot_normal
 from tensorflow.python.keras.initializers import RandomNormal, Zeros
+from tensorflow.python.keras.regularizers import l2
 from tensorflow.keras.layers import BatchNormalization
 import tensorflow as tf
 class DNN(Layer):
