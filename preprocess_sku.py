@@ -1,6 +1,6 @@
 import numpy as np
 import random
-from keras.preprocessing.sequence import pad_sequences
+from keras_preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
 
